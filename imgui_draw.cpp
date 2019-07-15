@@ -2667,6 +2667,12 @@ const char* ImFont::CalcWordWrapPositionA(float scale, const char* text, const c
             }
         }
 
+        if (c == '^' && *(s) && *(s) != '^')
+        {
+            ++s;
+            continue;
+        }
+
         const float char_width = ((int)c < IndexAdvanceX.Size ? IndexAdvanceX.Data[c] : FallbackAdvanceX);
         if (ImCharIsBlankW(c))
         {
@@ -2784,6 +2790,12 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
                 continue;
         }
 
+        if (c == '^' && *(s) && *(s) != '^')
+        {
+            ++s;
+            continue;
+        }
+
         const float char_width = ((int)c < IndexAdvanceX.Size ? IndexAdvanceX.Data[c] : FallbackAdvanceX) * scale;
         if (line_width + char_width >= max_width)
         {
@@ -2820,8 +2832,24 @@ void ImFont::RenderChar(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col
     }
 }
 
+// modified via https://github.com/ocornut/imgui/issues/902#issuecomment-316835510
 void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) const
 {
+    const ImU32 alpha = (col >> 24);
+    const ImU32 color_codes[10] =
+    {
+        col,                              // default 0
+        ImColor(0xff, 0x44, 0x44, alpha), // red     1
+        ImColor(0x99, 0xcc, 0x00, alpha), // green   2
+        ImColor(0xff, 0xbb, 0x33, alpha), // yellow  3
+        ImColor(0x00, 0x99, 0xcc, alpha), // blue    4
+        ImColor(0x33, 0xb5, 0xe5, alpha), // cyan    5
+        ImColor(0xaa, 0x66, 0xcc, alpha), // magenta 6
+        col,                              // reset   7
+        ImColor(0xcc, 0x00, 0x00, alpha), // black   8
+        ImColor(0xcc, 0x00, 0x00, alpha), // black   9
+    };
+
     if (!text_end)
         text_end = text_begin + strlen(text_begin); // ImGui functions generally already provides a valid text_end, so this is merely to handle direct calls.
 
@@ -2877,6 +2905,13 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col
 
     while (s < text_end)
     {
+        if (*s == '^' && *(s + 1) && *(s + 1) != '^')
+        {
+            col = color_codes[(*(s + 1) - '0') % 8];
+            s += 2;
+            continue;
+        }
+
         if (word_wrap_enabled)
         {
             // Calculate how far we can render. Requires two passes on the string data but keeps the code simple and not intrusive for what's essentially an uncommon feature.
@@ -2891,6 +2926,7 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, ImVec2 pos, ImU32 col
             {
                 x = pos.x;
                 y += line_height;
+                col = color_codes[0]; // reset color code on new line
                 word_wrap_eol = NULL;
 
                 // Wrapping skips upcoming blanks
