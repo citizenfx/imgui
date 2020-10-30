@@ -5739,7 +5739,7 @@ void ImGui::RenderWindowDecorations(ImGuiWindow* window, const ImRect& title_bar
                     is_docking_transparent_payload = true;
 
             ImU32 bg_col = GetColorU32(GetWindowBgColorIdxFromFlags(flags));
-            if (window->ViewportOwned)
+            if (window->ViewportOwned && false)
             {
                 // No alpha
                 bg_col = (bg_col | IM_COL32_A_MASK);
